@@ -18,6 +18,7 @@ deploy:
   provider: script
   script: "./.travis/build.sh --release"
   on:
+    condition: '"${TRAVIS_RUST_VERSION}" == "stable"'
     tags: true
 env:
   global:
