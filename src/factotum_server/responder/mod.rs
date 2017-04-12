@@ -98,7 +98,7 @@ pub struct JobStatus {
 pub fn api(request: &mut Request) -> IronResult<Response> {
     let url: Url = request.url.clone().into();
     let response = get_help_message();
-    return_json(status::Ok, encode(url, response))
+    return_json(status::Ok, encode(&url, response))
 }
 
 pub fn status(request: &mut Request) -> IronResult<Response> {
@@ -110,7 +110,7 @@ pub fn status(request: &mut Request) -> IronResult<Response> {
     let jobs_channel = mutex.try_lock().unwrap();
 
     let response = get_server_status(server_manager, jobs_channel.clone());
-    return_json(status::Ok, encode(url, response))
+    return_json(status::Ok, encode(&url, response))
 }
 
 pub fn settings(request: &mut Request) -> IronResult<Response> {
@@ -119,7 +119,7 @@ pub fn settings(request: &mut Request) -> IronResult<Response> {
     let rwlock = request.get::<State<Server>>().unwrap();
     let mut server = rwlock.write().unwrap();
     
-    let (status, response) = process_settings(url, request_body, server.deref_mut());
+    let (status, response) = process_settings(&url, request_body, server.deref_mut());
     return_json(status, response)
 }
 
@@ -135,14 +135,17 @@ pub fn submit(request: &mut Request) -> IronResult<Response> {
     let sender_mutex = request.get::<Read<Updates>>().unwrap();
     let jobs_channel = sender_mutex.try_lock().unwrap();
 
-    let (status, response) = process_submission(url, request_body, server.deref(), persistence.deref(), command_store.deref(), jobs_channel.deref());
+    let (status, response) = process_submission(&url, request_body, server.deref(), persistence.deref(), command_store.deref(), jobs_channel.deref());
     return_json(status, response)
 }
 
 pub fn check(request: &mut Request) -> IronResult<Response> {
     let url: Url = request.url.clone().into();
-    let response = ResponseMessage { message: "check".to_string() };
-    return_json(status::Ok, encode(url, &response))
+    let storage_rwlock = request.get::<State<Storage>>().unwrap();
+    let persistence = storage_rwlock.write().unwrap();
+
+    let (status, response) = check_job_request(&url, persistence.deref());
+    return_json(status, response)
 }
 
 // Helpers
@@ -200,7 +203,7 @@ fn get_server_status(server: &ServerManager, jobs_channel: Sender<Dispatch>) -> 
     }
 }
 
-fn process_settings(url: Url, request_body: Result<Option<SettingsRequest>, bodyparser::BodyError>, server: &mut ServerManager) -> (Status, String) {
+fn process_settings(url: &Url, request_body: Result<Option<SettingsRequest>, bodyparser::BodyError>, server: &mut ServerManager) -> (Status, String) {
     // get body
     let settings = match request_body {
         Ok(Some(decoded_settings)) => decoded_settings,
@@ -225,7 +228,7 @@ fn process_settings(url: Url, request_body: Result<Option<SettingsRequest>, body
     (status::Ok, create_ok_response(url, &format!("Update acknowledged: [state: {}]", server.state)))
 }
 
-fn process_submission<T, U>(url: Url, request_body: Result<Option<JobRequest>, bodyparser::BodyError>, server: &ServerManager, persistence: &T, command_store: &U, jobs_channel: &Sender<Dispatch>) -> (Status, String) where
+fn process_submission<T, U>(url: &Url, request_body: Result<Option<JobRequest>, bodyparser::BodyError>, server: &ServerManager, persistence: &T, command_store: &U, jobs_channel: &Sender<Dispatch>) -> (Status, String) where
     T: Persistence,
     U: Execution {
     // get body
@@ -276,13 +279,13 @@ fn job_will_be_run<T: Persistence>(persistence: &T, job_request: &mut JobRequest
     let mut is_running = false;
     match persistence::get_entry(persistence, job_request.job_id.clone()) {
         Some(job_entry) => {
-            debug!("Job Entry '{}' state='{}'", job_entry.job_request.job_id, job_entry.state);
+            debug!("Job entry id='{}' state='{}'", job_entry.job_request.job_id, job_entry.state);
             if job_entry.state != JobState::Done {
                 is_running = true;
             }
         },
         None => {
-            debug!("No state found for Job Entry '{}'", job_request.job_id);
+            debug!("No state found for job entry id='{}'", job_request.job_id);
         },
     };
     is_running
@@ -294,7 +297,27 @@ fn is_requests_queue_full(jobs_channel: Sender<Dispatch>) -> bool {
     rx.recv().expect("Queue query senders have been disconnected")
 }
 
-fn get_query_map(url: Url) -> HashMap<String, String> {
+fn check_job_request<T: Persistence>(url: &Url, persistence: &T) -> (Status, String) {
+    let query_map = get_query_map(&url);
+    let job_request_id = match query_map.get("id") {
+        Some(id) => id,
+        None => return (status::BadRequest, create_warn_response(url, "Error: No 'id' found in URL query parameters"))
+    };
+    let response = match persistence::get_entry(persistence, job_request_id.clone()) {
+        Some(job_entry) => {
+            debug!("Job entry id='{}' state='{}'", job_entry.job_request.job_id, job_entry.state);
+            job_entry
+        },
+        None => {
+            debug!("No job entry found for id='{}'", &job_request_id);
+            return (status::BadRequest, create_warn_response(url, &format!("Error: No job entry found for id='{}'", &job_request_id)))
+        },
+    };
+    debug!("{:?}", &response);
+    (status::Ok, encode(&url, &response))
+}
+
+fn get_query_map(url: &Url) -> HashMap<String, String> {
     let parser = url.query_pairs().into_owned();
     parser.collect()
 }
@@ -307,7 +330,7 @@ fn encode_pretty<T: Serialize>(message: T) -> String {
     serde_json::to_string_pretty(&message).expect("JSON pretty encode error")
 }
 
-fn encode<T: Serialize>(url: Url, message: T) -> String {
+fn encode<T: Serialize>(url: &Url, message: T) -> String {
     let query_map = get_query_map(url);
     if let Some(pretty) = query_map.get("pretty") {
         if pretty == "1" {
@@ -317,17 +340,17 @@ fn encode<T: Serialize>(url: Url, message: T) -> String {
     encode_compact(message)
 }
 
-fn create_response(url: Url, message: &str) -> String {
+fn create_response(url: &Url, message: &str) -> String {
     let response = ResponseMessage { message: message.to_string() };
-    encode(url, &response)
+    encode(&url, &response)
 }
 
-fn create_ok_response(url: Url, message: &str) -> String {
+fn create_ok_response(url: &Url, message: &str) -> String {
     info!("{}", message);
     create_response(url, message)
 }
 
-fn create_warn_response(url: Url, message: &str) -> String {
+fn create_warn_response(url: &Url, message: &str) -> String {
     warn!("{}", message);
     create_response(url, message)
 }

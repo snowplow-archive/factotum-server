@@ -22,7 +22,7 @@ fn process_settings_fail_no_body() {
     let request_body = Ok(None);
     let mut server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
 
-    let (status, response) = process_settings(url, request_body, &mut server_manager);
+    let (status, response) = process_settings(&url, request_body, &mut server_manager);
 
     assert_eq!(status, status::BadRequest);
     assert_eq!(response, r#"{"message":"Error: No body found in POST request"}"#);
@@ -37,7 +37,7 @@ fn process_settings_fail_invalid_json() {
     });
     let mut server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
 
-    let (status, response) = process_settings(url, request_body, &mut server_manager);
+    let (status, response) = process_settings(&url, request_body, &mut server_manager);
 
     assert_eq!(status, status::BadRequest);
     assert_eq!(response, r#"{"message":"Error decoding JSON string: bad stuff"}"#);
@@ -49,7 +49,7 @@ fn process_settings_fail_invalid_settings_request() {
     let request_body = Ok(Some(SettingsRequest::new("INVALID")));
     let mut server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
 
-    let (status, response) = process_settings(url, request_body, &mut server_manager);
+    let (status, response) = process_settings(&url, request_body, &mut server_manager);
 
     assert_eq!(status, status::BadRequest);
     assert_eq!(response, r#"{"message":"Validation Error: Invalid 'state', must be one of (run|drain)"}"#);
@@ -63,7 +63,7 @@ fn process_settings_success() {
 
     assert_eq!(server_manager.state, ::SERVER_STATE_RUN);
 
-    let (status, response) = process_settings(url, request_body, &mut server_manager);
+    let (status, response) = process_settings(&url, request_body, &mut server_manager);
 
     assert_eq!(server_manager.state, ::SERVER_STATE_DRAIN);
     assert_eq!(status, status::Ok);
@@ -79,7 +79,7 @@ fn process_submission_fail_no_body() {
     let command_store = commands![::FACTOTUM.to_string() => "/tmp/fake_command".to_string()];
     let (tx, _) = mpsc::channel();
 
-    let (status, response) = process_submission(url, request_body, &server_manager, &persistence, &command_store, &tx);
+    let (status, response) = process_submission(&url, request_body, &server_manager, &persistence, &command_store, &tx);
 
     assert_eq!(status, status::BadRequest);
     assert_eq!(response, r#"{"message":"Error: No body found in POST request"}"#);
@@ -97,7 +97,7 @@ fn process_submission_fail_invalid_json() {
     let command_store = commands![::FACTOTUM.to_string() => "/tmp/fake_command".to_string()];
     let (tx, _) = mpsc::channel();
 
-    let (status, response) = process_submission(url, request_body, &server_manager, &persistence, &command_store, &tx);
+    let (status, response) = process_submission(&url, request_body, &server_manager, &persistence, &command_store, &tx);
 
     assert_eq!(status, status::BadRequest);
     assert_eq!(response, r#"{"message":"Error decoding JSON string: bad stuff"}"#);
@@ -113,7 +113,7 @@ fn process_submission_fail_server_in_drain_state() {
     let (tx, _) = mpsc::channel();
 
     server_manager.state = ::SERVER_STATE_DRAIN.to_string();
-    let (status, response) = process_submission(url, request_body, &server_manager, &persistence, &command_store, &tx);
+    let (status, response) = process_submission(&url, request_body, &server_manager, &persistence, &command_store, &tx);
 
     assert_eq!(status, status::BadRequest);
     assert_eq!(response, r#"{"message":"Server in [drain] state - cannot submit job"}"#);
@@ -128,7 +128,7 @@ fn process_submission_fail_invalid_job_request() {
     let command_store = commands![::FACTOTUM.to_string() => "/tmp/fake_command".to_string()];
     let (tx, _) = mpsc::channel();
 
-    let (status, response) = process_submission(url, request_body, &server_manager, &persistence, &command_store, &tx);
+    let (status, response) = process_submission(&url, request_body, &server_manager, &persistence, &command_store, &tx);
 
     assert_eq!(status, status::BadRequest);
     assert_eq!(response, r#"{"message":"Validation Error: No valid value found: field 'jobName' cannot be empty"}"#);
@@ -158,7 +158,7 @@ fn process_submission_fail_job_already_run() {
     let noop_command = NoopCommandMock;
     let (tx, rx) = mpsc::channel();
 
-    let (status, response) = process_submission(url, request_body, &server_manager, &persistence, &noop_command, &tx);
+    let (status, response) = process_submission(&url, request_body, &server_manager, &persistence, &noop_command, &tx);
 
     assert_eq!(status, status::BadRequest);
     assert_eq!(response, r#"{"message":"Job has already been run"}"#);
