@@ -72,7 +72,7 @@ impl ServerManager {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobRequest {
-    #[serde(skip_deserializing)]
+    #[serde(default)]
     pub job_id: String,
     pub job_name: String,
     pub factfile_path: String,
