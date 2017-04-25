@@ -14,7 +14,6 @@
 
 use super::*;
 use std::error::Error;
-use regex::Regex;
 
 #[test]
 fn create_new_server_manager() {
@@ -50,7 +49,13 @@ fn server_manager_get_start_time() {
 #[test]
 fn server_manager_get_uptime() {
     let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
-    assert!(Regex::new(r"^\d+ Days, \d+ Hours, \d+ Minutes, \d+ Seconds$").unwrap().is_match(&server_manager.get_uptime()));
+    let uptime = UTC::now().signed_duration_since(server_manager.start_time);
+    let seconds = uptime.num_seconds() % 60;
+    let minutes = uptime.num_minutes() % 60;
+    let hours = uptime.num_hours() % 24;
+    let days = uptime.num_days();
+    let expected = format!("{} Days, {} Hours, {} Minutes, {} Seconds", days, hours, minutes, seconds);
+    assert_eq!(expected, server_manager.get_uptime());
 }
 
 #[test]
