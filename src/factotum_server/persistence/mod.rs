@@ -93,8 +93,8 @@ pub fn set_entry<T: Persistence>(persistence: &T, job_ref: &str, job_request: &J
     }
 }
 
-pub fn get_entry<T: Persistence>(persistence: &T, job_ref: String) -> Option<JobEntry> {
-    let job_key = persistence.prepend_namespace(&job_ref);
+pub fn get_entry<T: Persistence>(persistence: &T, job_ref: &str) -> Option<JobEntry> {
+    let job_key = persistence.prepend_namespace(job_ref);
     let result = persistence.get_key(&job_key);
 
     let keystore_val = match result {

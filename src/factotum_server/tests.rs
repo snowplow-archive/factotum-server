@@ -46,7 +46,7 @@ fn send_status_update_success() {
     let mut requests_queue = VecDeque::new();
     requests_queue.push_back(job_request);
 
-    send_status_update(query, &mut requests_queue, 10, pool);
+    send_status_update(query, &mut requests_queue, 10, &pool);
 
     let actual = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
     let expected = DispatcherStatus {
@@ -98,7 +98,7 @@ fn new_job_request_success() {
     let job_request = JobRequest::new("1", "dummy", "/tmp/somewhere", vec![]);
     let mut requests_queue = VecDeque::new();
 
-    new_job_request(tx.clone(), &mut requests_queue, pool.clone(), persistence, job_request.clone());
+    new_job_request(tx.clone(), &mut requests_queue, &pool, persistence, job_request.clone());
     
     let output = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
     assert_eq!(Dispatch::ProcessRequest, output);
@@ -115,7 +115,7 @@ fn process_job_request_failure() {
     let mut requests_queue = VecDeque::new();
     requests_queue.push_back(job_request.clone());
 
-    process_job_request(tx.clone(), &mut requests_queue, pool.clone(), persistence, command_store);
+    process_job_request(tx.clone(), &mut requests_queue, &pool, persistence, command_store);
 
     let output = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
     assert_eq!(Dispatch::RequestFailure(job_request), output);

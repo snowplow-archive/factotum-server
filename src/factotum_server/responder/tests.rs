@@ -209,7 +209,7 @@ fn process_submission_fail_job_already_run() {
     let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
     let persistence = GoodPersistenceMock::new("test_submission_fail");
     let request = JobRequest::new("dummy_id_1", "dummy", "/tmp", vec!["--no-colour".to_string()]);
-    let job_entry = JobEntry::new(JobState::QUEUED, request.clone(), persistence.id(), JobOutcome::WAITING);
+    let job_entry = JobEntry::new(&JobState::QUEUED, &request, &persistence.id(), &JobOutcome::WAITING);
     let job_entry_json = serde_json::to_string(&job_entry).expect("JSON compact encode error");
     let encoded_entry = base64_encode(job_entry_json.as_bytes());
     {

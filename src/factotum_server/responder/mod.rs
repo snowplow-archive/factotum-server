@@ -249,7 +249,7 @@ fn process_settings(url: &Url, request_body: Result<Option<SettingsRequest>, bod
             return (status::BadRequest, create_warn_response(url, "Error: No body found in POST request"))
         },
         Err(e) => {
-            return (status::BadRequest, create_warn_response(url, &format!("Error decoding JSON string: {}", e.cause().unwrap())))
+            return (status::BadRequest, create_warn_response(url, &format!("Error decoding JSON string: {}", e.cause().expect("Cause not found"))))
         }
     };
 
@@ -284,7 +284,7 @@ fn process_valid_submission<T, U, F, G>(url: &Url, request_body: Result<Option<J
             return (status::BadRequest, create_warn_response(url, "Error: No body found in POST request"))
         },
         Err(e) => {
-            return (status::BadRequest, create_warn_response(url, &format!("Error decoding JSON string: {}", e.cause().unwrap())))
+            return (status::BadRequest, create_warn_response(url, &format!("Error decoding JSON string: {}", e.cause().expect("Cause not found"))))
         }
     };
 
@@ -323,9 +323,9 @@ fn job_will_be_run<T: Persistence>(persistence: &T, job_request: &mut JobRequest
     // elif SOME && state == done -> continue
     // else FAIL
     let mut is_running = false;
-    match persistence::get_entry(persistence, job_request.job_id.clone()) {
+    match persistence::get_entry(persistence, &job_request.job_id) {
         Some(job_entry) => {
-            debug!("Job entry id='{}' state='{}'", job_entry.job_request.job_id, job_entry.state);
+            debug!("Job entry id='{}' state='{}'", &job_entry.job_request.job_id, &job_entry.state);
             if job_entry.state != JobState::DONE {
                 is_running = true;
             }
@@ -349,7 +349,7 @@ fn check_job_request<T: Persistence>(url: &Url, persistence: &T) -> (Status, Str
         Some(id) => id,
         None => return (status::BadRequest, create_warn_response(url, "Error: No 'id' found in URL query parameters"))
     };
-    let response = match persistence::get_entry(persistence, job_request_id.clone()) {
+    let response = match persistence::get_entry(persistence, &job_request_id) {
         Some(job_entry) => {
             debug!("Job entry id='{}' state='{}'", job_entry.job_request.job_id, job_entry.state);
             job_entry

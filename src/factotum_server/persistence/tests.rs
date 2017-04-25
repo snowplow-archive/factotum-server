@@ -79,7 +79,7 @@ fn set_entry_fail_error() {
     let persistence = BadPersistenceMock;
     let request = JobRequest::new("", "dummy", "/fake/path", vec![]);
 
-    let result = set_entry(&persistence, "fake_entry".to_string(), request.clone(), JobState::QUEUED, JobOutcome::WAITING);
+    let result = set_entry(&persistence, "fake_entry", &request, &JobState::QUEUED, &JobOutcome::WAITING);
 
     assert_eq!(false, result);
 }
@@ -89,7 +89,7 @@ fn set_entry_new_success() {
     let persistence = GoodPersistenceMock::new("test_set");
     let request = JobRequest::new("", "dummy", "/fake/path", vec![]);
 
-    let result = set_entry(&persistence, "fake_entry".to_string(), request.clone(), JobState::QUEUED, JobOutcome::WAITING);
+    let result = set_entry(&persistence, "fake_entry", &request, &JobState::QUEUED, &JobOutcome::WAITING);
 
     let borrowed = &persistence.ref_map.borrow();
     let entry = borrowed.get("com.test/namespace/fake_entry").unwrap();
@@ -106,7 +106,7 @@ fn set_entry_new_success() {
 fn get_entry_fail_none() {
     let persistence = BadPersistenceMock;
 
-    let result = get_entry(&persistence, "fake_entry".to_string());
+    let result = get_entry(&persistence, "fake_entry");
 
     assert_eq!(None, result);
 }
@@ -117,7 +117,7 @@ fn get_entry_without_namespace_success_key() {
 
     let persistence = GoodPersistenceMock::new("test_get");
     let request = JobRequest::new("", "dummy", "/fake/path", vec![]);
-    let job_entry = JobEntry::new(JobState::QUEUED, request.clone(), persistence.id(), JobOutcome::WAITING);
+    let job_entry = JobEntry::new(&JobState::QUEUED, &request, &persistence.id(), &JobOutcome::WAITING);
     let job_entry_json = serde_json::to_string(&job_entry).expect("JSON compact encode error");
     let encoded_entry = encode(job_entry_json.as_bytes());
     {
@@ -125,8 +125,8 @@ fn get_entry_without_namespace_success_key() {
         map.insert("com.test/namespace/dummy_entry".to_string(), encoded_entry);
     }
 
-    let id = "dummy_entry".to_string();
-    let result = get_entry(&persistence, id.clone()).expect(&format!("Unable to find entry in test persistence! id='{}'", id));
+    let id = "dummy_entry";
+    let result = get_entry(&persistence, id).expect(&format!("Unable to find entry in test persistence! id='{}'", id));
 
     assert_eq!(JobState::QUEUED, result.state);
     assert_eq!("test_get".to_string(), result.last_run_from);
@@ -139,7 +139,7 @@ fn get_entry_with_namespace_success_key() {
 
     let persistence = GoodPersistenceMock::new("test_get");
     let request = JobRequest::new("", "dummy", "/fake/path", vec![]);
-    let job_entry = JobEntry::new(JobState::QUEUED, request.clone(), persistence.id(), JobOutcome::WAITING);
+    let job_entry = JobEntry::new(&JobState::QUEUED, &request, &persistence.id(), &JobOutcome::WAITING);
     let job_entry_json = serde_json::to_string(&job_entry).expect("JSON compact encode error");
     let encoded_entry = encode(job_entry_json.as_bytes());
     {
@@ -147,8 +147,8 @@ fn get_entry_with_namespace_success_key() {
         map.insert("com.test/namespace/dummy_entry".to_string(), encoded_entry);
     }
 
-    let id = "com.test/namespace/dummy_entry".to_string();
-    let result = get_entry(&persistence, id.clone()).expect(&format!("Unable to find entry in test persistence! id='{}'", id));
+    let id = "com.test/namespace/dummy_entry";
+    let result = get_entry(&persistence, id).expect(&format!("Unable to find entry in test persistence! id='{}'", id));
 
     assert_eq!(JobState::QUEUED, result.state);
     assert_eq!("test_get".to_string(), result.last_run_from);
