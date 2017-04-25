@@ -95,11 +95,23 @@ pub fn api(request: &mut Request) -> IronResult<Response> {
 
 pub fn status(request: &mut Request) -> IronResult<Response> {
     let url: Url = request.url.clone().into();
-    let rwlock = request.get::<State<Server>>().unwrap();
-    let reader = rwlock.read().unwrap();
+    let rwlock = match request.get::<State<Server>>() {
+        Ok(lock) => lock,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let reader = match rwlock.read() {
+        Ok(result) => result,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
     let server_manager = reader.deref();
-    let mutex = request.get::<Read<Updates>>().unwrap();
-    let jobs_channel = mutex.try_lock().unwrap();
+    let mutex = match request.get::<Read<Updates>>() {
+        Ok(lock) => lock,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let jobs_channel = match mutex.try_lock() {
+        Ok(result) => result,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
 
     let response = get_server_status(server_manager, jobs_channel.clone());
     return_json(status::Ok, encode(&url, response))
@@ -108,8 +120,14 @@ pub fn status(request: &mut Request) -> IronResult<Response> {
 pub fn settings(request: &mut Request) -> IronResult<Response> {
     let url: Url = request.url.clone().into();
     let request_body = request.get::<bodyparser::Struct<SettingsRequest>>();
-    let rwlock = request.get::<State<Server>>().unwrap();
-    let mut server = rwlock.write().unwrap();
+    let rwlock = match request.get::<State<Server>>() {
+        Ok(lock) => lock,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let mut server = match rwlock.write() {
+        Ok(result) => result,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
     
     let (status, response) = process_settings(&url, request_body, server.deref_mut());
     return_json(status, response)
@@ -118,14 +136,38 @@ pub fn settings(request: &mut Request) -> IronResult<Response> {
 pub fn submit(request: &mut Request) -> IronResult<Response> {
     let url: Url = request.url.clone().into();
     let request_body = request.get::<bodyparser::Struct<JobRequest>>();
-    let server_rwlock = request.get::<State<Server>>().unwrap();
-    let server = server_rwlock.write().unwrap();
-    let storage_rwlock = request.get::<State<Storage>>().unwrap();
-    let persistence = storage_rwlock.write().unwrap();
-    let command_store_rwlock = request.get::<Read<Paths>>().unwrap();
-    let command_store = command_store_rwlock.read().unwrap();
-    let sender_mutex = request.get::<Read<Updates>>().unwrap();
-    let jobs_channel = sender_mutex.try_lock().unwrap();
+    let server_rwlock = match request.get::<State<Server>>() {
+        Ok(lock) => lock,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let server = match server_rwlock.write() {
+        Ok(result) => result,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let storage_rwlock = match request.get::<State<Storage>>() {
+        Ok(lock) => lock,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let persistence = match storage_rwlock.write() {
+        Ok(result) => result,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let command_store_rwlock = match request.get::<Read<Paths>>() {
+        Ok(lock) => lock,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let command_store = match command_store_rwlock.read() {
+        Ok(result) => result,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let sender_mutex = match request.get::<Read<Updates>>() {
+        Ok(lock) => lock,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let jobs_channel = match sender_mutex.try_lock() {
+        Ok(result) => result,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
 
     let (status, response) = process_submission(&url, request_body, server.deref(), persistence.deref(), command_store.deref(), jobs_channel.deref());
     return_json(status, response)
@@ -133,8 +175,14 @@ pub fn submit(request: &mut Request) -> IronResult<Response> {
 
 pub fn check(request: &mut Request) -> IronResult<Response> {
     let url: Url = request.url.clone().into();
-    let storage_rwlock = request.get::<State<Storage>>().unwrap();
-    let persistence = storage_rwlock.write().unwrap();
+    let storage_rwlock = match request.get::<State<Storage>>() {
+        Ok(lock) => lock,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
+    let persistence = match storage_rwlock.write() {
+        Ok(result) => result,
+        Err(e) => return return_json(status::ServiceUnavailable, encode(&url, e.to_string()))
+    };
 
     let (status, response) = check_job_request(&url, persistence.deref());
     return_json(status, response)
