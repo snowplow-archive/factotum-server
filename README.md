@@ -15,9 +15,9 @@ Job server as a web service. Enables the scheduling and concurrent execution of 
 Assuming you're running **64 bit Linux**:
 
 ```{bash}
-host> wget http://dl.bintray.com/snowplow/snowplow-generic/factotum_server_0.1.0_linux_x86_64.zip
-host> unzip factotum_server_0.1.0_linux_x86_64.zip
-host> ./factotum-server --help
+$ wget http://dl.bintray.com/snowplow/snowplow-generic/factotum_server_0.1.0_linux_x86_64.zip
+$ unzip factotum_server_0.1.0_linux_x86_64.zip
+$ ./factotum-server --help
 ```
 
 [Factotum][factotum-repo] needs to be available locally. You can then run Factotum Server with preset defaults and the Factotum path specified in the following way:
