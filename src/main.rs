@@ -120,7 +120,10 @@ fn main() {
         check_ip_arg(&args.flag_ip);
         check_ip_arg(&args.flag_consul_ip);
         check_and_init_logger(&args.flag_log_level);
-        factotum_server::start(args);
+        match factotum_server::start(args) {
+            Ok(_) => {},
+            Err(msg) => println!("{}", msg)
+        }
     }
 }
 

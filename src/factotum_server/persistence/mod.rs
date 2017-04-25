@@ -76,12 +76,12 @@ impl Persistence for ConsulPersistence {
     }
 }
 
-pub fn set_entry<T: Persistence>(persistence: &T, job_ref: String, job_request: JobRequest, state: JobState, outcome: JobOutcome) -> bool
+pub fn set_entry<T: Persistence>(persistence: &T, job_ref: &str, job_request: &JobRequest, state: &JobState, outcome: &JobOutcome) -> bool
 {
     let job_entry = JobEntry::new(state, job_request, persistence.id(), outcome);
     let job_entry_json = serde_json::to_string(&job_entry).expect("JSON compact encode error");
 
-    let job_key = persistence.prepend_namespace(&job_ref);
+    let job_key = persistence.prepend_namespace(job_ref);
     let result = persistence.set_key(&job_key, &job_entry_json);
 
     match result {
@@ -162,12 +162,12 @@ pub struct JobEntry {
 }
 
 impl JobEntry {
-    pub fn new(state: JobState, request: JobRequest, server_id: &str, outcome: JobOutcome) -> JobEntry {
+    pub fn new(state: &JobState, request: &JobRequest, server_id: &str, outcome: &JobOutcome) -> JobEntry {
         JobEntry {
-            state: state,
-            job_request: request,
+            state: state.to_owned(),
+            job_request: request.to_owned(),
             last_run_from: server_id.to_owned(),
-            last_outcome: outcome,
+            last_outcome: outcome.to_owned(),
         }
     }
 }
