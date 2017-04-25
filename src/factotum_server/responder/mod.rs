@@ -32,7 +32,7 @@ use factotum_server::command::Execution;
 use factotum_server::dispatcher::{Dispatch, Query};
 use factotum_server::persistence;
 use factotum_server::persistence::{Persistence, JobState};
-use factotum_server::server::{ServerManager, SettingsRequest, JobRequest};
+use factotum_server::server::{ServerManager, SettingsRequest, JobRequest, ValidationError};
 
 #[cfg(test)]
 mod tests;
@@ -50,15 +50,9 @@ struct ResponseMessage {
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FactotumServerStatus {
-    version: VersionStatus,
+    version: String,
     server: ServerStatus,
     dispatcher: DispatcherStatus,
-}
-
-#[derive(Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct VersionStatus {
-    executor: String
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -191,9 +185,7 @@ fn get_server_status(server: &ServerManager, jobs_channel: Sender<Dispatch>) -> 
     let dispatcher_status = rx.recv().expect("Server status senders have been disconnected");
 
     FactotumServerStatus {
-        version: VersionStatus {
-            executor: ::VERSION.to_string()
-        },
+        version: ::VERSION.to_string(),
         server: ServerStatus {
             start_time: server.get_start_time(),
             up_time: server.get_uptime(),
@@ -231,6 +223,14 @@ fn process_settings(url: &Url, request_body: Result<Option<SettingsRequest>, bod
 fn process_submission<T, U>(url: &Url, request_body: Result<Option<JobRequest>, bodyparser::BodyError>, server: &ServerManager, persistence: &T, command_store: &U, jobs_channel: &Sender<Dispatch>) -> (Status, String) where
     T: Persistence,
     U: Execution {
+    process_valid_submission(url, request_body, server, persistence, command_store, jobs_channel, JobRequest::validate, is_requests_queue_full)
+}
+
+fn process_valid_submission<T, U, F, G>(url: &Url, request_body: Result<Option<JobRequest>, bodyparser::BodyError>, server: &ServerManager, persistence: &T, command_store: &U, jobs_channel: &Sender<Dispatch>, validate: F, is_requests_queue_full: G) -> (Status, String) where
+    T: Persistence,
+    U: Execution,
+    F: Fn(JobRequest, &U) -> Result<JobRequest, ValidationError>,
+    G: Fn(Sender<Dispatch>) -> bool {
     // get body
     let job_request = match request_body {
         Ok(Some(decoded_job_request)) => decoded_job_request,
@@ -248,7 +248,7 @@ fn process_submission<T, U>(url: &Url, request_body: Result<Option<JobRequest>, 
     }
 
     // validate job request
-    let mut validated_job_request = match JobRequest::validate(job_request, command_store) {
+    let mut validated_job_request = match validate(job_request, command_store) {
         Ok(validated_job_request) => validated_job_request,
         Err(e) => {
             return (status::BadRequest, create_warn_response(url, &format!("{}", e)))

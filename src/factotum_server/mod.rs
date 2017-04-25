@@ -75,7 +75,7 @@ pub fn start(args: Args) {
     
     let address = SocketAddr::from_str(&format!("{}:{}", server.ip, server.port)).expect("Failed to parse socket address");
 
-    let (requests_channel, _, _) = trigger_worker_manager(dispatcher, persistence.clone(), &command_store).unwrap();
+    let (requests_channel, _, _) = trigger_worker_manager(dispatcher, persistence.clone(), &command_store).expect("Failed to start up worker manager thread");
 
     let router = router!(
         index:      get     "/"         =>  responder::api,
@@ -83,7 +83,7 @@ pub fn start(args: Args) {
         status:     get     "/status"   =>  responder::status,
         settings:   post    "/settings" =>  responder::settings,
         submit:     post    "/submit"   =>  responder::submit,
-        check:      post    "/check"    =>  responder::check
+        check:      get     "/check"    =>  responder::check
     );
     let (logger_before, logger_after) = Logger::new(None);
 
@@ -110,7 +110,7 @@ pub fn start(args: Args) {
 
 // Concurrent dispatch
 
-pub fn trigger_worker_manager<T: 'static + Clone + Persistence + Send>(dispatcher: Dispatcher, persistence: T, command_store: &CommandStore) -> Result<(Sender<Dispatch>, JoinHandle<String>, ThreadPool), String> {
+pub fn trigger_worker_manager<T: 'static + Clone + Persistence + Send>(dispatcher: Dispatcher, persistence: T, command_store: &CommandStore) -> Result<(Sender<Dispatch>, JoinHandle<()>, ThreadPool), String> {
     let (tx, rx) = mpsc::channel();
     let primary_pool = ThreadPool::new_with_name("primary_pool".to_string(), dispatcher.max_workers);
 
@@ -119,11 +119,10 @@ pub fn trigger_worker_manager<T: 'static + Clone + Persistence + Send>(dispatche
     Ok((tx, join_handle, primary_pool))
 }
 
-fn spawn_worker_manager<T: 'static + Clone + Persistence + Send>(job_requests_tx: Sender<Dispatch>, job_requests_rx: Receiver<Dispatch>, requests_queue: VecDeque<JobRequest>, max_jobs: usize, primary_pool: ThreadPool, persistence: T, command_store: CommandStore) -> JoinHandle<String> {
+fn spawn_worker_manager<T: 'static + Clone + Persistence + Send>(job_requests_tx: Sender<Dispatch>, job_requests_rx: Receiver<Dispatch>, requests_queue: VecDeque<JobRequest>, max_jobs: usize, primary_pool: ThreadPool, persistence: T, command_store: CommandStore) -> JoinHandle<()> {
     let mut requests_queue = requests_queue;
-    let mut is_processing = true;
     thread::spawn(move || {
-        while is_processing {
+        loop {
             let message = job_requests_rx.recv().expect("Error receiving message in channel");
 
             match message {
@@ -133,10 +132,9 @@ fn spawn_worker_manager<T: 'static + Clone + Persistence + Send>(job_requests_tx
                 Dispatch::ProcessRequest => process_job_request(job_requests_tx.clone(), &mut requests_queue, primary_pool.clone(), persistence.clone(), command_store.clone()),
                 Dispatch::RequestComplete(request) => complete_job_request(job_requests_tx.clone(), persistence.clone(), request),
                 Dispatch::RequestFailure(request) => failed_job_request(job_requests_tx.clone(), persistence.clone(), request),
-                Dispatch::StopProcessing => is_processing = stop_processing(),
+                Dispatch::StopProcessing => { info!("Stopping worker manager"); break; },
             }
         }
-        String::from("EXITING WORKER MANAGER")
     })
 }
 
@@ -225,11 +223,6 @@ fn failed_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, persis
     // Update failure in persistence storage
     persist_entry(&persistence, request.job_id.clone(), request, JobState::Done);
     requests_channel.send(Dispatch::ProcessRequest).expect("Job requests channel receiver has been deallocated");
-}
-
-fn stop_processing() -> bool {
-    info!("STOPPING");
-    false
 }
 
 fn persist_entry<T: Persistence>(persistence: &T, client_job_id: String, job_request: JobRequest, job_state: JobState) {

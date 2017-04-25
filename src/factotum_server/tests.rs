@@ -16,17 +16,25 @@ use super::*;
 use std::time::Duration;
 
 #[test]
-fn worker_manager_spawn_and_exit() {
+fn worker_manager_spawn_check_queue_and_exit() {
     let (tx, rx) = mpsc::channel();
     let pool = ThreadPool::new(2);
     let persistence = ConsulPersistence::new(None, None, None, None);
     let command_store = commands!["dummy".to_string() => "/tmp/fake_command".to_string()];
 
     let handle = spawn_worker_manager(tx.clone(), rx, VecDeque::new(), 2, pool.clone(), persistence, command_store);
+
+    let (qtx, qrx) = mpsc::channel();
+    let query = Query::new("queue_query".to_string(), qtx);
+    tx.send(Dispatch::CheckQueue(query)).unwrap();
+
+    let output = qrx.recv_timeout(Duration::from_millis(1000)).unwrap();
+    assert!(output == false);
+
     tx.send(Dispatch::StopProcessing).unwrap();
 
     let output = handle.join().unwrap();
-    assert_eq!("EXITING WORKER MANAGER", output);
+    assert_eq!((), output);
 }
 
 #[test]
@@ -69,7 +77,7 @@ fn is_queue_full_true() {
     is_queue_full(query, &mut requests_queue, 2);
 
     let result = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
-    assert_eq!(true, result);
+    assert!(result == true);
 }
 
 #[test]
@@ -81,7 +89,7 @@ fn is_queue_full_false() {
     is_queue_full(query, &mut requests_queue, 2);
 
     let result = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
-    assert_eq!(false, result);
+    assert!(result == false);
 }
 
 #[test]

@@ -69,9 +69,9 @@ const USAGE: &'static str =
 Factotum Server.
 
 Usage:
-  factotum_server --factotum-bin=<path> [--ip=<address>] [--port=<number>] [--max-jobs=<size>] [--max-workers=<size>] [--webhook=<url>] [--no-colour] [--consul-name=<name>] [--consul-ip=<address>] [--consul-port=<number>] [--consul-namespace=<namespace>] [--log-level=<level>]
-  factotum_server (-h | --help)
-  factotum_server (-v | --version)
+  factotum-server --factotum-bin=<path> [--ip=<address>] [--port=<number>] [--max-jobs=<size>] [--max-workers=<size>] [--webhook=<url>] [--no-colour] [--consul-name=<name>] [--consul-ip=<address>] [--consul-port=<number>] [--consul-namespace=<namespace>] [--log-level=<level>]
+  factotum-server (-h | --help)
+  factotum-server (-v | --version)
 
 Options:
   -h --help                             Show this screen.

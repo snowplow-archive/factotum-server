@@ -117,7 +117,7 @@ pub fn get_entry<T: Persistence>(persistence: &T, job_ref: String) -> Option<Job
     }
 }
 
-fn apply_namespace_if_absent(namespace: &str, id: &str) -> String {
+pub fn apply_namespace_if_absent(namespace: &str, id: &str) -> String {
     if id.starts_with(namespace) {
         id.to_owned()
     } else {
@@ -147,7 +147,7 @@ pub struct JobEntry {
 }
 
 impl JobEntry {
-    fn new(state: JobState, request: JobRequest, server_id: &str) -> JobEntry {
+    pub fn new(state: JobState, request: JobRequest, server_id: &str) -> JobEntry {
         JobEntry {
             state: state,
             job_request: request,
