@@ -58,8 +58,6 @@ fn send_status_update_success() {
         jobs: JobStatus {
             max_queue_size: 10,
             in_queue: 1,
-            fail_count: 0,
-            success_count: 0
         }
     };
     assert_eq!(expected, actual);

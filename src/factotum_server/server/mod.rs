@@ -80,6 +80,7 @@ pub struct JobRequest {
 }
 
 impl JobRequest {
+    #[allow(dead_code)]
     pub fn new(job_id: &str, job_name: &str, factfile_path: &str, factfile_args: Vec<String>) -> JobRequest {
         JobRequest {
             job_id: job_id.to_owned(),
@@ -173,6 +174,7 @@ impl PartialEq for SettingsRequest {
 }
 
 impl SettingsRequest {
+    #[allow(dead_code)]
     pub fn new(state: &str) -> SettingsRequest {
         SettingsRequest {
             state: state.to_owned()

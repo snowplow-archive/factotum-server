@@ -39,7 +39,7 @@ use threadpool::ThreadPool;
 use Args;
 use factotum_server::command::{CommandStore, Execution};
 use factotum_server::dispatcher::{Dispatch, Dispatcher, Query};
-use factotum_server::persistence::{Persistence, ConsulPersistence, JobState};
+use factotum_server::persistence::{Persistence, ConsulPersistence, JobState, JobOutcome};
 use factotum_server::responder::{DispatcherStatus, JobStatus, WorkerStatus};
 use factotum_server::server::{ServerManager, JobRequest};
 
@@ -151,8 +151,6 @@ fn send_status_update(query: Query<DispatcherStatus>, requests_queue: &mut VecDe
         jobs: JobStatus {
             max_queue_size: max_jobs,
             in_queue: requests_queue.len(),
-            fail_count: 0,
-            success_count: 0
         }
     };
     tx.send(result).expect("Server status channel receiver has been deallocated");
@@ -168,7 +166,7 @@ fn new_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, requests_
     debug!("ADDING NEW JOB jobId:[{}]", request.job_id);
     requests_queue.push_back(request.clone());
     // Create entry in persistence storage
-    persist_entry(&persistence, request.job_id.clone(), request.clone(), JobState::Queued);
+    persist_entry(&persistence, request.job_id.clone(), request.clone(), JobState::QUEUED, JobOutcome::WAITING);
     // Check queue size - return error if limit exceeded (not important right now)
     if primary_pool.active_count() < primary_pool.max_count() {
         requests_channel.send(Dispatch::ProcessRequest).expect("Job requests channel receiver has been deallocated");
@@ -184,7 +182,7 @@ fn process_job_request<T: 'static + Persistence + Send>(requests_channel: Sender
             primary_pool.execute(move || {
                 debug!("PROCESSING JOB REQ jobId:[{}]", request.job_id);
                 // Update status in persistence storage
-                persist_entry(&persistence, request.job_id.clone(), request.clone(), JobState::Working);
+                persist_entry(&persistence, request.job_id.clone(), request.clone(), JobState::WORKING, JobOutcome::RUNNING);
                 let cmd_path = match command_store.get_command(::FACTOTUM) {
                     Ok(path) => path,
                     Err(e) => {
@@ -214,19 +212,19 @@ fn process_job_request<T: 'static + Persistence + Send>(requests_channel: Sender
 fn complete_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, persistence: T, request: JobRequest) {
     info!("COMPLETED JOB REQ  jobId:[{}]", request.job_id);
     // Update completion in persistence storage
-    persist_entry(&persistence, request.job_id.clone(), request, JobState::Done);
+    persist_entry(&persistence, request.job_id.clone(), request, JobState::DONE, JobOutcome::SUCCEEDED);
     requests_channel.send(Dispatch::ProcessRequest).expect("Job requests channel receiver has been deallocated");
 }
 
 fn failed_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, persistence: T, request: JobRequest) {
     error!("FAILED JOB REQ jobId:[{}]", request.job_id);
     // Update failure in persistence storage
-    persist_entry(&persistence, request.job_id.clone(), request, JobState::Done);
+    persist_entry(&persistence, request.job_id.clone(), request, JobState::DONE, JobOutcome::FAILED);
     requests_channel.send(Dispatch::ProcessRequest).expect("Job requests channel receiver has been deallocated");
 }
 
-fn persist_entry<T: Persistence>(persistence: &T, client_job_id: String, job_request: JobRequest, job_state: JobState) {
-    let output = persistence::set_entry(persistence, client_job_id.clone(), job_request, job_state.clone());
+fn persist_entry<T: Persistence>(persistence: &T, client_job_id: String, job_request: JobRequest, job_state: JobState, job_outcome: JobOutcome) {
+    let output = persistence::set_entry(persistence, client_job_id.clone(), job_request, job_state.clone(), job_outcome);
     if output {
         debug!("Persist [{}]::[{}]", client_job_id, job_state);
     } else {

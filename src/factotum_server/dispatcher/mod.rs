@@ -21,6 +21,7 @@ use factotum_server::server::JobRequest;
 use factotum_server::responder::DispatcherStatus;
 
 #[derive(Debug, PartialEq)]
+#[allow(dead_code)]
 pub enum Dispatch {
     StatusUpdate(Query<DispatcherStatus>),
     CheckQueue(Query<bool>),

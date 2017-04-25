@@ -83,8 +83,6 @@ pub struct WorkerStatus {
 pub struct JobStatus {
     pub max_queue_size: usize,
     pub in_queue: usize,
-    pub fail_count: usize,
-    pub success_count: usize,
 }
 
 // Response handlers
@@ -280,7 +278,7 @@ fn job_will_be_run<T: Persistence>(persistence: &T, job_request: &mut JobRequest
     match persistence::get_entry(persistence, job_request.job_id.clone()) {
         Some(job_entry) => {
             debug!("Job entry id='{}' state='{}'", job_entry.job_request.job_id, job_entry.state);
-            if job_entry.state != JobState::Done {
+            if job_entry.state != JobState::DONE {
                 is_running = true;
             }
         },

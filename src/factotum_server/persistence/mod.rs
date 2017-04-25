@@ -76,9 +76,9 @@ impl Persistence for ConsulPersistence {
     }
 }
 
-pub fn set_entry<T: Persistence>(persistence: &T, job_ref: String, job_request: JobRequest, state: JobState) -> bool
+pub fn set_entry<T: Persistence>(persistence: &T, job_ref: String, job_request: JobRequest, state: JobState, outcome: JobOutcome) -> bool
 {
-    let job_entry = JobEntry::new(state, job_request, persistence.id());
+    let job_entry = JobEntry::new(state, job_request, persistence.id(), outcome);
     let job_entry_json = serde_json::to_string(&job_entry).expect("JSON compact encode error");
 
     let job_key = persistence.prepend_namespace(&job_ref);
@@ -127,12 +127,26 @@ pub fn apply_namespace_if_absent(namespace: &str, id: &str) -> String {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum JobState {
-    Queued,
-    Working,
-    Done,
+    QUEUED,
+    WORKING,
+    DONE,
 }
 
 impl fmt::Display for JobState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub enum JobOutcome {
+    SUCCEEDED,
+    FAILED,
+    RUNNING,
+    WAITING,
+}
+
+impl fmt::Display for JobOutcome {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
@@ -144,14 +158,16 @@ pub struct JobEntry {
     pub state: JobState,
     pub job_request: JobRequest,
     pub last_run_from: String,
+    pub last_outcome: JobOutcome,
 }
 
 impl JobEntry {
-    pub fn new(state: JobState, request: JobRequest, server_id: &str) -> JobEntry {
+    pub fn new(state: JobState, request: JobRequest, server_id: &str, outcome: JobOutcome) -> JobEntry {
         JobEntry {
             state: state,
             job_request: request,
             last_run_from: server_id.to_owned(),
+            last_outcome: outcome,
         }
     }
 }
