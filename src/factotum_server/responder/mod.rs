@@ -37,8 +37,6 @@ use factotum_server::server::{ServerManager, SettingsRequest, JobRequest, Valida
 #[cfg(test)]
 mod tests;
 
-const JSON_CONTENT_TYPE: &'static str = "application/json; charset=UTF-8";
-
 // JSON Response Structs
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -402,6 +400,6 @@ fn create_warn_response(url: &Url, message: &str) -> String {
 }
 
 fn return_json(code: Status, response: String) -> IronResult<Response> {
-    let content_type = JSON_CONTENT_TYPE.parse::<Mime>().unwrap();
+    let content_type = ::JSON_CONTENT_TYPE.parse::<Mime>().expect(&format!("Unable to parse Mime type for '{}'", ::JSON_CONTENT_TYPE));
     Ok(Response::with((content_type, code, response)))
 }

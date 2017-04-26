@@ -45,6 +45,9 @@ use regex::Regex;
 
 mod factotum_server;
 
+#[cfg(test)]
+mod tests;
+
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 const FACTOTUM: &'static str = "factotum";
@@ -61,6 +64,8 @@ const CONSUL_NAMESPACE_DEFAULT: &'static str = "com.snowplowanalytics/factotum";
 
 const SERVER_STATE_RUN: &'static str = "run";
 const SERVER_STATE_DRAIN: &'static str = "drain";
+
+const JSON_CONTENT_TYPE: &'static str = "application/json; charset=UTF-8";
 
 const VALID_IP_REGEX: &'static str = r"\b(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\b";
 
@@ -116,10 +121,13 @@ fn main() {
     if args.flag_version {
         println!("Factotum Server version [{}]", VERSION);
     } else {
-        check_factotum_bin_arg(&args.flag_factotum_bin);
-        check_ip_arg(&args.flag_ip);
-        check_ip_arg(&args.flag_consul_ip);
-        check_and_init_logger(&args.flag_log_level);
+        match check_and_init_logger(&args) {
+            Ok(_) => {},
+            Err(msg) => {
+                println!("{}", msg);
+                std::process::exit(1)
+            }
+        };
         match factotum_server::start(args) {
             Ok(_) => {},
             Err(msg) => println!("{}", msg)
@@ -129,41 +137,70 @@ fn main() {
 
 // --- Helpers ---
 
-fn check_factotum_bin_arg(factotum_bin: &str) {
-    if !std::path::Path::new(factotum_bin).exists() {
-        println!("Invalid path for Factotum binary at: '{}'", factotum_bin);
-        std::process::exit(1)
-    }
+fn check_and_init_logger(args: &Args) -> Result<(), String> {
+    match check_factotum_bin_arg(&args.flag_factotum_bin) {
+        Ok(..) => {},
+        Err(e) => return Err(e),
+    };
+    match check_ip_arg(&args.flag_ip) {
+        Ok(..) => {},
+        Err(e) => return Err(e),
+    };
+    match check_ip_arg(&args.flag_consul_ip) {
+        Ok(..) => {},
+        Err(e) => return Err(e),
+    };
+    match init_logger(&args.flag_log_level) {
+        Ok(..) => {},
+        Err(e) => return Err(e),
+    };
+    Ok(())
 }
 
-fn check_ip_arg(wrapped_ip: &Option<String>) {
+fn check_factotum_bin_arg(factotum_bin: &str) -> Result<(), String> {
+    if !std::path::Path::new(factotum_bin).exists() {
+        return Err(format!("Invalid path for Factotum binary at: '{}'", factotum_bin))
+    }
+    Ok(())
+}
+
+fn check_ip_arg(wrapped_ip: &Option<String>) -> Result<(), String> {
     if let Some(ip) = wrapped_ip.as_ref() {
         if !is_a_valid_ip(&ip) {
-            println!("Invalid IP address: [{}] - Regex mismatch", ip);
-            std::process::exit(1)
+            return Err(format!("Invalid IP address: [{}] - Regex mismatch", ip))
         }
     }
-}
-
-fn check_and_init_logger(level_input: &Option<String>) {
-    let log_level = get_log_level(level_input);
-    let log_config = get_log_config(log_level).unwrap();
-    log4rs::init_config(log_config).unwrap();
+    Ok(())
 }
 
 fn is_a_valid_ip(text: &str) -> bool {
     lazy_static! {
-        static ref RE: Regex = Regex::new(::VALID_IP_REGEX).unwrap();
+        static ref RE: Regex = Regex::new(::VALID_IP_REGEX).expect("Error building regex");
     }
     RE.is_match(text)
 }
 
-fn get_log_level(level_input: &Option<String>) -> LogLevelFilter {
+fn init_logger(level_input: &Option<String>) -> Result<(), String> {
+    let log_level = match get_log_level(level_input) {
+        Ok(level) => level,
+        Err(e) => return Err(e),
+    };
+    let log_config = match get_log_config(log_level) {
+        Ok(config) => config,
+        Err(e) => return Err(format!("Error building log config: {}", e.to_string())),
+    };
+    match log4rs::init_config(log_config) {
+        Ok(..) => Ok(()),
+        Err(e) => return Err(format!("Error initialising log config: {}", e.to_string())),
+    }
+}
+
+fn get_log_level(level_input: &Option<String>) -> Result<LogLevelFilter, String> {
     let log_level = match level_input.as_ref() {
         Some(input) => input,
-        None => return LogLevelFilter::Warn,
+        None => return Ok(LogLevelFilter::Warn),
     };
-    match log_level.to_lowercase().as_ref() {
+    let result = match log_level.to_lowercase().as_ref() {
         "off" => LogLevelFilter::Off,
         "error" => LogLevelFilter::Error,
         "warn" => LogLevelFilter::Warn,
@@ -171,11 +208,10 @@ fn get_log_level(level_input: &Option<String>) -> LogLevelFilter {
         "debug" => LogLevelFilter::Debug,
         "trace" => LogLevelFilter::Trace,
         _ => {
-            println!("Unknown log level: '{}'", log_level);
-            println!("Please select a valid log level.");
-            std::process::exit(1)
+            return Err(format!("Unknown log level: '{}'\nPlease select a valid log level.", log_level))
         },
-    }
+    };
+    Ok(result)
 }
 
 fn get_log_config(log_level: LogLevelFilter) -> Result<log4rs::config::Config, log4rs::config::Errors> {
