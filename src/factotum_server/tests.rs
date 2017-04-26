@@ -25,7 +25,7 @@ fn worker_manager_spawn_check_queue_and_exit() {
     let handle = spawn_worker_manager(tx.clone(), rx, VecDeque::new(), 2, pool.clone(), persistence, command_store);
 
     let (qtx, qrx) = mpsc::channel();
-    let query = Query::new("queue_query".to_string(), qtx);
+    let query = Query::new("queue_query", qtx);
     tx.send(Dispatch::CheckQueue(query)).unwrap();
 
     let output = qrx.recv_timeout(Duration::from_millis(1000)).unwrap();
@@ -40,7 +40,7 @@ fn worker_manager_spawn_check_queue_and_exit() {
 #[test]
 fn send_status_update_success() {
     let (tx, rx) = mpsc::channel();
-    let query = Query::new("status_query".to_string(), tx);
+    let query = Query::new("status_query", tx);
     let pool = ThreadPool::new(2);
     let job_request = JobRequest::new("1", "dummy", "/tmp/somewhere", vec![]);
     let mut requests_queue = VecDeque::new();
@@ -66,7 +66,7 @@ fn send_status_update_success() {
 #[test]
 fn is_queue_full_true() {
     let (tx, rx) = mpsc::channel();
-    let query = Query::new("queue_query".to_string(), tx);
+    let query = Query::new("queue_query", tx);
     let job_request = JobRequest::new("1", "dummy", "/tmp/somewhere", vec![]);
     let mut requests_queue = VecDeque::new();
     requests_queue.push_back(job_request.clone());
@@ -81,7 +81,7 @@ fn is_queue_full_true() {
 #[test]
 fn is_queue_full_false() {
     let (tx, rx) = mpsc::channel();
-    let query = Query::new("queue_query".to_string(), tx);
+    let query = Query::new("queue_query", tx);
     let mut requests_queue = VecDeque::new();
 
     is_queue_full(query, &mut requests_queue, 2);
@@ -91,17 +91,40 @@ fn is_queue_full_false() {
 }
 
 #[test]
-fn new_job_request_success() {
+fn new_job_request_success_with_threads_available() {
     let (tx, rx) = mpsc::channel();
     let pool = ThreadPool::new(2);
     let persistence = ConsulPersistence::new(None, None, None, None);
     let job_request = JobRequest::new("1", "dummy", "/tmp/somewhere", vec![]);
     let mut requests_queue = VecDeque::new();
 
-    new_job_request(tx.clone(), &mut requests_queue, &pool, persistence, job_request.clone());
+    let result = new_job_request(tx.clone(), &mut requests_queue, &pool, persistence, job_request.clone());
     
     let output = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
     assert_eq!(Dispatch::ProcessRequest, output);
+    assert_eq!(Ok(()), result);
+    assert!(requests_queue.contains(&job_request));
+}
+
+#[test]
+fn new_job_request_success_with_no_threads_available() {
+    let (tx, rx) = mpsc::channel();
+    let pool = ThreadPool::new(1);
+    let persistence = ConsulPersistence::new(None, None, None, None);
+    let job_request = JobRequest::new("1", "dummy", "/tmp/somewhere", vec![]);
+    let mut requests_queue = VecDeque::new();
+
+    let first = new_job_request(tx.clone(), &mut requests_queue, &pool, persistence.clone(), job_request.clone());
+    pool.execute(move || {
+        thread::sleep(Duration::from_millis(1000));
+    });
+    thread::sleep(Duration::from_millis(100));
+    let second = new_job_request(tx.clone(), &mut requests_queue, &pool, persistence, job_request.clone());
+    
+    let output = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
+    assert_eq!(Dispatch::ProcessRequest, output);
+    assert_eq!(Ok(()), first);
+    assert_eq!(Err("No threads available - waiting for a job to complete.".to_string()), second);
     assert!(requests_queue.contains(&job_request));
 }
 
@@ -125,22 +148,24 @@ fn process_job_request_failure() {
 fn complete_job_request_success() {
     let (tx, rx) = mpsc::channel();
     let persistence = ConsulPersistence::new(None, None, None, None);
-    let job_request = JobRequest::new("1", "dummy", "/tmp/somewhere", vec![]);
+    let job_request = JobRequest::new("dummy_id_1", "dummy", "/tmp/somewhere", vec![]);
 
-    complete_job_request(tx, persistence, job_request);
+    let outcome = complete_job_request(tx, persistence, job_request);
 
     let output = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
     assert_eq!(Dispatch::ProcessRequest, output);
+    assert_eq!("COMPLETED JOB REQ  jobId:[dummy_id_1]".to_string(), outcome);
 }
 
 #[test]
 fn failed_job_request_success() {
     let (tx, rx) = mpsc::channel();
     let persistence = ConsulPersistence::new(None, None, None, None);
-    let job_request = JobRequest::new("1", "dummy", "/tmp/somewhere", vec![]);
+    let job_request = JobRequest::new("dummy_id_1", "dummy", "/tmp/somewhere", vec![]);
 
-    failed_job_request(tx, persistence, job_request);
+    let outcome = failed_job_request(tx, persistence, job_request);
 
     let output = rx.recv_timeout(Duration::from_millis(1000)).unwrap();
     assert_eq!(Dispatch::ProcessRequest, output);
+    assert_eq!("FAILED JOB REQ jobId:[dummy_id_1]".to_string(), outcome);
 }

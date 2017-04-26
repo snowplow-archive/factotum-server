@@ -95,11 +95,11 @@ impl JobRequest {
         // check factfile path not empty
         // check factfile args not empty
         if request.job_name == "" {
-            let message = "No valid value found: field 'jobName' cannot be empty".to_string();
+            let message = format!("No valid value found: field 'jobName' cannot be empty");
             error!("{}", message);
             return Err(ValidationError::no_output(message))
         } else if request.factfile_path == "" {
-            let message = "No valid value found: field 'factfilePath' cannot be empty".to_string();
+            let message = format!("No valid value found: field 'factfilePath' cannot be empty");
             error!("{}", message);
             return Err(ValidationError::no_output(message))
         }

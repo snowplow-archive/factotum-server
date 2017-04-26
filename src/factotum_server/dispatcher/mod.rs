@@ -56,9 +56,9 @@ pub struct Query<T> {
 }
 
 impl<T> Query<T> {
-    pub fn new(name: String, status_tx: Sender<T>) -> Query<T> {
+    pub fn new(name: &str, status_tx: Sender<T>) -> Query<T> {
         Query {
-            name: name,
+            name: name.to_owned(),
             status_tx: status_tx,
         }
     }

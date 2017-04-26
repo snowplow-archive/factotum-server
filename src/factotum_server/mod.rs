@@ -127,13 +127,31 @@ fn spawn_worker_manager<T: 'static + Clone + Persistence + Send>(job_requests_tx
             let message = job_requests_rx.recv().expect("Error receiving message in channel");
 
             match message {
-                Dispatch::StatusUpdate(query) => send_status_update(query, &mut requests_queue, max_jobs, &primary_pool),
-                Dispatch::CheckQueue(query) => is_queue_full(query, &mut requests_queue, max_jobs),
-                Dispatch::NewRequest(request) => new_job_request(job_requests_tx.clone(), &mut requests_queue, &primary_pool, persistence.clone(), request),
-                Dispatch::ProcessRequest => process_job_request(job_requests_tx.clone(), &mut requests_queue, &primary_pool, persistence.clone(), command_store.clone()),
-                Dispatch::RequestComplete(request) => complete_job_request(job_requests_tx.clone(), persistence.clone(), request),
-                Dispatch::RequestFailure(request) => failed_job_request(job_requests_tx.clone(), persistence.clone(), request),
-                Dispatch::StopProcessing => { info!("Stopping worker manager"); break; },
+                Dispatch::StatusUpdate(query) => {
+                    send_status_update(query, &mut requests_queue, max_jobs, &primary_pool)
+                },
+                Dispatch::CheckQueue(query) => {
+                    is_queue_full(query, &mut requests_queue, max_jobs)
+                },
+                Dispatch::NewRequest(request) => {
+                    match new_job_request(job_requests_tx.clone(), &mut requests_queue, &primary_pool, persistence.clone(), request) {
+                        Ok(..) => {},
+                        Err(msg) => info!("{}", msg),
+                    }
+                },
+                Dispatch::ProcessRequest => {
+                    process_job_request(job_requests_tx.clone(), &mut requests_queue, &primary_pool, persistence.clone(), command_store.clone())
+                },
+                Dispatch::RequestComplete(request) => {
+                    info!("{}", complete_job_request(job_requests_tx.clone(), persistence.clone(), request))
+                },
+                Dispatch::RequestFailure(request) => {
+                    error!("{}", failed_job_request(job_requests_tx.clone(), persistence.clone(), request))
+                },
+                Dispatch::StopProcessing => {
+                    info!("Stopping worker manager");
+                    break;
+                },
             }
         }
     })
@@ -141,9 +159,14 @@ fn spawn_worker_manager<T: 'static + Clone + Persistence + Send>(job_requests_tx
 
 fn send_status_update(query: Query<DispatcherStatus>, requests_queue: &mut VecDeque<JobRequest>, max_jobs: usize, primary_pool: &ThreadPool) {
     let tx = query.status_tx;
+    let result = get_dispatcher_status(requests_queue, max_jobs, primary_pool);
+    tx.send(result).expect("Server status channel receiver has been deallocated");
+}
+
+fn get_dispatcher_status(requests_queue: &mut VecDeque<JobRequest>, max_jobs: usize, primary_pool: &ThreadPool) -> DispatcherStatus {
     let total_workers = primary_pool.max_count();
     let active_workers = primary_pool.active_count();
-    let result = DispatcherStatus {
+    DispatcherStatus {
         workers: WorkerStatus {
             total: total_workers,
             idle: total_workers - active_workers,
@@ -153,8 +176,7 @@ fn send_status_update(query: Query<DispatcherStatus>, requests_queue: &mut VecDe
             max_queue_size: max_jobs,
             in_queue: requests_queue.len(),
         }
-    };
-    tx.send(result).expect("Server status channel receiver has been deallocated");
+    }
 }
 
 fn is_queue_full(query: Query<bool>, requests_queue: &mut VecDeque<JobRequest>, max_jobs: usize) {
@@ -163,16 +185,20 @@ fn is_queue_full(query: Query<bool>, requests_queue: &mut VecDeque<JobRequest>, 
     tx.send(is_full).expect("Queue query channel receiver has been deallocated");
 }
 
-fn new_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, requests_queue: &mut VecDeque<JobRequest>, primary_pool: &ThreadPool, persistence: T, request: JobRequest) {
+fn new_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, requests_queue: &mut VecDeque<JobRequest>, primary_pool: &ThreadPool, persistence: T, request: JobRequest) -> Result<(), String> {
     debug!("ADDING NEW JOB jobId:[{}]", request.job_id);
     requests_queue.push_back(request.clone());
     // Create entry in persistence storage
-    persist_entry(&persistence, &request.job_id, &request, &JobState::QUEUED, &JobOutcome::WAITING);
+    match persist_entry(&persistence, &request.job_id, &request, &JobState::QUEUED, &JobOutcome::WAITING) {
+        Ok(msg) => debug!("{}", msg),
+        Err(msg) => error!("{}", msg),
+    };
     // Check queue size - return error if limit exceeded (not important right now)
     if primary_pool.active_count() < primary_pool.max_count() {
         requests_channel.send(Dispatch::ProcessRequest).expect("Job requests channel receiver has been deallocated");
+        Ok(())
     } else {
-        info!("No threads available - waiting for a job to complete.")
+        Err(format!("No threads available - waiting for a job to complete."))
     }
 }
 
@@ -183,7 +209,10 @@ fn process_job_request<T: 'static + Persistence + Send>(requests_channel: Sender
             primary_pool.execute(move || {
                 debug!("PROCESSING JOB REQ jobId:[{}]", request.job_id);
                 // Update status in persistence storage
-                persist_entry(&persistence, &request.job_id, &request, &JobState::WORKING, &JobOutcome::RUNNING);
+                match persist_entry(&persistence, &request.job_id, &request, &JobState::WORKING, &JobOutcome::RUNNING) {
+                    Ok(msg) => debug!("{}", msg),
+                    Err(msg) => error!("{}", msg),
+                };
                 let cmd_path = match command_store.get_command(::FACTOTUM) {
                     Ok(path) => path,
                     Err(e) => {
@@ -210,25 +239,31 @@ fn process_job_request<T: 'static + Persistence + Send>(requests_channel: Sender
     }
 }
 
-fn complete_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, persistence: T, request: JobRequest) {
-    info!("COMPLETED JOB REQ  jobId:[{}]", request.job_id);
+fn complete_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, persistence: T, request: JobRequest) -> String {
     // Update completion in persistence storage
-    persist_entry(&persistence, &request.job_id, &request, &JobState::DONE, &JobOutcome::SUCCEEDED);
+    match persist_entry(&persistence, &request.job_id, &request, &JobState::DONE, &JobOutcome::SUCCEEDED) {
+        Ok(msg) => debug!("{}", msg),
+        Err(msg) => error!("{}", msg),
+    };
     requests_channel.send(Dispatch::ProcessRequest).expect("Job requests channel receiver has been deallocated");
+    format!("COMPLETED JOB REQ  jobId:[{}]", request.job_id)
 }
 
-fn failed_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, persistence: T, request: JobRequest) {
-    error!("FAILED JOB REQ jobId:[{}]", request.job_id);
+fn failed_job_request<T: Persistence>(requests_channel: Sender<Dispatch>, persistence: T, request: JobRequest) -> String {
     // Update failure in persistence storage
-    persist_entry(&persistence, &request.job_id, &request, &JobState::DONE, &JobOutcome::FAILED);
+    match persist_entry(&persistence, &request.job_id, &request, &JobState::DONE, &JobOutcome::FAILED) {
+        Ok(msg) => debug!("{}", msg),
+        Err(msg) => error!("{}", msg),
+    };
     requests_channel.send(Dispatch::ProcessRequest).expect("Job requests channel receiver has been deallocated");
+    format!("FAILED JOB REQ jobId:[{}]", request.job_id)
 }
 
-fn persist_entry<T: Persistence>(persistence: &T, client_job_id: &str, job_request: &JobRequest, job_state: &JobState, job_outcome: &JobOutcome) {
+fn persist_entry<T: Persistence>(persistence: &T, client_job_id: &str, job_request: &JobRequest, job_state: &JobState, job_outcome: &JobOutcome) -> Result<String, String> {
     let output = persistence::set_entry(persistence, client_job_id, job_request, job_state, job_outcome);
     if output {
-        debug!("Persist [{}]::[{}]", client_job_id, job_state);
+        Ok(format!("Persist [{}]::[{}]", client_job_id, job_state))
     } else {
-        error!("Persistence Error: Failed to update [{}] to [{}]", client_job_id, job_state);
+        Err(format!("Persistence Error: Failed to update [{}] to [{}]", client_job_id, job_state))
     }
 }

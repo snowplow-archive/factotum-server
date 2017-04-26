@@ -13,6 +13,7 @@
 //
 
 use super::*;
+use std::sync::mpsc;
 
 #[test]
 fn create_new_dispatcher() {
@@ -21,4 +22,38 @@ fn create_new_dispatcher() {
     assert_eq!(dispatcher.max_jobs, 10);
     assert_eq!(dispatcher.max_workers, 2);
     assert!(dispatcher.requests_queue.is_empty());
+}
+
+#[test]
+fn create_new_queries_same_name_different_sender_still_equal() {
+    let (tx1, _) = mpsc::channel();
+    let (tx2, _) = mpsc::channel();
+    let query_one: Query<String> = Query::new("dummy_query", tx1);
+    let query_two: Query<String> = Query::new("dummy_query", tx2);
+    assert!(query_one == query_two);
+}
+
+#[test]
+fn create_new_queries_same_name_same_sender_still_equal() {
+    let (tx, _) = mpsc::channel();
+    let query_one: Query<String> = Query::new("dummy_query", tx.clone());
+    let query_two: Query<String> = Query::new("dummy_query", tx.clone());
+    assert!(query_one == query_two);
+}
+
+#[test]
+fn create_new_queries_different_name_different_sender_is_not_equal() {
+    let (tx1, _) = mpsc::channel();
+    let (tx2, _) = mpsc::channel();
+    let query_one: Query<String> = Query::new("dummy_query_one", tx1);
+    let query_two: Query<String> = Query::new("dummy_query_two", tx2);
+    assert!(query_one != query_two);
+}
+
+#[test]
+fn create_new_queries_different_name_same_sender_is_not_equal() {
+    let (tx, _) = mpsc::channel();
+    let query_one: Query<String> = Query::new("dummy_query_one", tx.clone());
+    let query_two: Query<String> = Query::new("dummy_query_two", tx.clone());
+    assert!(query_one != query_two);
 }

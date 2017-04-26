@@ -225,7 +225,7 @@ fn get_help_message() -> serde_json::Value {
 
 fn get_server_status(server: &ServerManager, jobs_channel: Sender<Dispatch>) -> FactotumServerStatus {
     let (tx, rx) = mpsc::channel();
-    jobs_channel.send(Dispatch::StatusUpdate(Query::new("status_query".to_string(), tx))).expect("Job requests channel receiver has been deallocated");
+    jobs_channel.send(Dispatch::StatusUpdate(Query::new("status_query", tx))).expect("Job requests channel receiver has been deallocated");
     let dispatcher_status = rx.recv().expect("Server status senders have been disconnected");
 
     FactotumServerStatus {
@@ -337,7 +337,7 @@ fn job_will_be_run<T: Persistence>(persistence: &T, job_request: &mut JobRequest
 
 fn is_requests_queue_full(jobs_channel: Sender<Dispatch>) -> bool {
     let (tx, rx) = mpsc::channel();
-    jobs_channel.send(Dispatch::CheckQueue(Query::new("queue_query".to_string(), tx))).expect("Job requests channel receiver has been deallocated");
+    jobs_channel.send(Dispatch::CheckQueue(Query::new("queue_query", tx))).expect("Job requests channel receiver has been deallocated");
     rx.recv().expect("Queue query senders have been disconnected")
 }
 
