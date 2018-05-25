@@ -1,3 +1,8 @@
-Version 0.1.0 (2017-04-XX)
+Version 0.2.0 (2018-05-xx)
+--------------------------
+Add support for Webhook max-stdouterr-size (#6)
+Update Copyright years to 2017-2018 (#7)
+
+Version 0.1.0 (2017-04-28)
 --------------------------
 Initial release
