@@ -74,7 +74,7 @@ const USAGE: &'static str =
 Factotum Server.
 
 Usage:
-  factotum-server --factotum-bin=<path> [--ip=<address>] [--port=<number>] [--max-jobs=<size>] [--max-workers=<size>] [--webhook=<url>] [--no-colour] [--consul-name=<name>] [--consul-ip=<address>] [--consul-port=<number>] [--consul-namespace=<namespace>] [--log-level=<level>]
+  factotum-server --factotum-bin=<path> [--ip=<address>] [--port=<number>] [--max-jobs=<size>] [--max-workers=<size>] [--webhook=<url>] [--no-colour] [--consul-name=<name>] [--consul-ip=<address>] [--consul-port=<number>] [--consul-namespace=<namespace>] [--log-level=<level>] [--max-stdouterr-size=<bytes>]
   factotum-server (-h | --help)
   factotum-server (-v | --version)
 
@@ -93,7 +93,7 @@ Options:
   --consul-ip=<address>                 Specify IP address for Consul server agent.
   --consul-port=<number>                Specify port number for Consul server agent.
   --consul-namespace=<namespace>        Specify namespace of job references stored in Consul persistence.
-
+  --max-stdouterr-size=<bytes>          The maximum size of the individual stdout/err sent via the webhook functions for job updates.
 ";
 
 #[derive(Debug, RustcDecodable)]
@@ -111,6 +111,7 @@ pub struct Args {
     flag_consul_ip: Option<String>,
     flag_consul_port: Option<u32>,
     flag_consul_namespace: Option<String>,
+    flag_max_stdouterr_size: Option<usize>,
 }
 
 fn main() {

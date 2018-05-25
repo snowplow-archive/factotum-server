@@ -17,7 +17,7 @@ use std::error::Error;
 
 #[test]
 fn create_new_server_manager() {
-    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://a.webhook.com/".to_string(), true);
+    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://a.webhook.com/".to_string(), true, Some(10_000));
 
     assert_eq!(server_manager.ip, "0.0.0.0");
     assert_eq!(server_manager.port, 8080);
@@ -29,26 +29,26 @@ fn create_new_server_manager() {
 
 #[test]
 fn server_manager_is_running() {
-    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
+    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false, Some(10_000));
     assert!(server_manager.is_running());
 }
 
 #[test]
 fn server_manager_is_not_running() {
-    let mut server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
+    let mut server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false, Some(10_000));
     server_manager.state = ::SERVER_STATE_DRAIN.to_string();
     assert_eq!(server_manager.is_running(), false);
 }
 
 #[test]
 fn server_manager_get_start_time() {
-    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
+    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false, Some(10_000));
     assert_eq!(server_manager.get_start_time(), UTC::now().format("%F %T %Z").to_string());
 }
 
 #[test]
 fn server_manager_get_uptime() {
-    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false);
+    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false, Some(10_000));
     let uptime = UTC::now().signed_duration_since(server_manager.start_time);
     let seconds = uptime.num_seconds() % 60;
     let minutes = uptime.num_minutes() % 60;
@@ -84,10 +84,10 @@ fn job_request_invalid_factfile_path() {
 
 #[test]
 fn job_request_can_append_job_args() {
-    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), true);
+    let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), true, Some(10_000));
     let mut job_request = JobRequest::new("1", "dummy", "/tmp/somewhere", vec!["--first-arg".to_string()]);
     JobRequest::append_job_args(&server_manager, &mut job_request);
-    assert_eq!(job_request.factfile_args, vec!["--first-arg", "--webhook", "http://dummy.test/", "--no-colour"]);
+    assert_eq!(job_request.factfile_args, vec!["--first-arg", "--webhook", "http://dummy.test/", "--max-stdouterr-size", "10000", "--no-colour"]);
 }
 
 #[test]

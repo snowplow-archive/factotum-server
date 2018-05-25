@@ -37,10 +37,11 @@ pub struct ServerManager {
     pub start_time: DateTime<UTC>,
     pub webhook_uri: String,
     pub no_colour: bool,
+    pub max_stdouterr_size: Option<usize>,
 }
 
 impl ServerManager {
-    pub fn new(wrapped_ip: Option<String>, port: u32, webhook_uri: String, no_colour: bool) -> ServerManager {
+    pub fn new(wrapped_ip: Option<String>, port: u32, webhook_uri: String, no_colour: bool, max_stdouterr_size: Option<usize>) -> ServerManager {
         ServerManager {
             ip: if let Some(ip) = wrapped_ip { ip } else { ::IP_DEFAULT.to_string() },
             port: if port > 0 && port <= 65535 { port } else { ::PORT_DEFAULT },
@@ -48,6 +49,7 @@ impl ServerManager {
             start_time: UTC::now(),
             webhook_uri: webhook_uri.to_string(),
             no_colour: no_colour,
+            max_stdouterr_size: max_stdouterr_size,
         }
     }
 
@@ -145,6 +147,12 @@ impl JobRequest {
         if server.webhook_uri != "" {
             job.factfile_args.push("--webhook".to_string());
             job.factfile_args.push(server.webhook_uri.clone());
+
+            // Only required with webhook
+            if let Some(max_bytes) = server.max_stdouterr_size.clone() {
+                job.factfile_args.push("--max-stdouterr-size".to_string());
+                job.factfile_args.push(max_bytes.to_string());
+            };
         }
         if server.no_colour {
             job.factfile_args.push("--no-colour".to_string());
@@ -261,6 +269,7 @@ fn extract_tags(factfile_args: &Vec<String>) -> Result<Option<HashMap<String, St
     opts.optflag("", "dry-run", "Pretend to execute a Factfile, showing the commands that would be executed. Can be used with other options.");
     opts.optflag("", "no-colour", "Turn off ANSI terminal colours/formatting in output.");
     opts.optflag("", "overwrite", "Overwrite the output file if it exists.");
+    opts.optopt("", "max-stdouterr-size", "The maximum size of the individual stdout/err sent via the webhook functions for job updates.", "BYTES");
 
     let matches = match opts.parse(factfile_args) {
         Ok(m) => m,
