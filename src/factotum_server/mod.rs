@@ -68,7 +68,7 @@ impl Key for Updates {
 }
 
 pub fn start(args: Args) -> Result<(), String> {
-    let server = ServerManager::new(args.flag_ip, args.flag_port, args.flag_webhook, args.flag_no_colour);
+    let server = ServerManager::new(args.flag_ip, args.flag_port, args.flag_webhook, args.flag_no_colour, args.flag_max_stdouterr_size);
     let persistence = ConsulPersistence::new(args.flag_consul_name, args.flag_consul_ip, args.flag_consul_port, args.flag_consul_namespace);
     let dispatcher = Dispatcher::new(args.flag_max_jobs, args.flag_max_workers);
     let command_store = commands![::FACTOTUM.to_string() => args.flag_factotum_bin];
