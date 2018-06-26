@@ -11,8 +11,6 @@ matrix:
     - rust: nightly
 script:
   - "$TRAVIS_BUILD_DIR/.travis/build.sh"
-before_deploy:
-  - pip install --user release-manager==0.1.0
 deploy:
   skip_cleanup: true
   provider: script
