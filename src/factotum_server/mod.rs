@@ -113,7 +113,7 @@ pub fn start(args: Args) -> Result<(), String> {
 
 pub fn trigger_worker_manager<T: 'static + Clone + Persistence + Send>(dispatcher: Dispatcher, persistence: T, command_store: &CommandStore) -> Result<(Sender<Dispatch>, JoinHandle<()>, ThreadPool), String> {
     let (tx, rx) = mpsc::channel();
-    let primary_pool = ThreadPool::new_with_name("primary_pool".to_string(), dispatcher.max_workers);
+    let primary_pool = ThreadPool::with_name("primary_pool".to_string(), dispatcher.max_workers);
 
     let join_handle = spawn_worker_manager(tx.clone(), rx, dispatcher.requests_queue, dispatcher.max_jobs, primary_pool.clone(), persistence, command_store.clone());
 
