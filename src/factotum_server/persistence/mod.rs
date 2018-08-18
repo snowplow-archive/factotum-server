@@ -50,7 +50,8 @@ impl ConsulPersistence {
     }
 
     fn client(&self) -> Client {
-        return Client::new(&format!("http://{}:{}", self.host.clone(), self.port.clone()))
+        let address = format!("http://{}:{}", self.host.clone(), self.port.clone());
+        return Client::new(address)
     }
 }
 
