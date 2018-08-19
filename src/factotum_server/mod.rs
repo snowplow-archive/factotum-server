@@ -35,6 +35,7 @@ use iron::typemap::Key;
 use logger::Logger;
 use persistent::{Read, State};
 use threadpool::ThreadPool;
+use chrono::prelude::Utc;
 
 use Args;
 use factotum_server::command::{CommandStore, Execution};
@@ -230,6 +231,7 @@ fn process_job_request<T: 'static + Persistence + Send>(requests_channel: Sender
                         trace!("process_job_request output:{}", output);
                         let mut clone = request.clone();
                         clone.exec_output = output;
+                        clone.end_time = Utc::now();
                         requests_channel.send(Dispatch::RequestComplete(clone)).expect("Job requests channel receiver has been deallocated");
                     },
                     Err(e) => {
