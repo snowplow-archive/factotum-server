@@ -227,8 +227,10 @@ fn process_job_request<T: 'static + Persistence + Send>(requests_channel: Sender
                 cmd_args.extend_from_slice(request.factfile_args.as_slice());
                 match command_store.execute(cmd_path, cmd_args) {
                     Ok(output) => {
-                        trace!("{}", output);
-                        requests_channel.send(Dispatch::RequestComplete(request)).expect("Job requests channel receiver has been deallocated");
+                        trace!("process_job_request output:{}", output);
+                        let mut clone = request.clone();
+                        clone.exec_output = output;
+                        requests_channel.send(Dispatch::RequestComplete(clone)).expect("Job requests channel receiver has been deallocated");
                     },
                     Err(e) => {
                         error!("{}", e);

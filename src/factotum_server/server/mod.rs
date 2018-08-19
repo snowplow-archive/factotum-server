@@ -78,7 +78,9 @@ pub struct JobRequest {
     pub job_id: String,
     pub job_name: String,
     pub factfile_path: String,
-    pub factfile_args: Vec<String>
+    pub factfile_args: Vec<String>,
+    #[serde(default)]
+    pub exec_output: String
 }
 
 impl JobRequest {
@@ -89,6 +91,7 @@ impl JobRequest {
             job_name: job_name.to_owned(),
             factfile_path: factfile_path.to_owned(),
             factfile_args: factfile_args,
+            exec_output: String::new(),
         }
     }
 
