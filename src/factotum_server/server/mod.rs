@@ -160,17 +160,23 @@ impl JobRequest {
     }
 
     pub fn append_job_args(server: &ServerManager, job: &mut JobRequest) {
-        if server.webhook_uri != "" {
-            job.factfile_args.push("--webhook".to_string());
-            job.factfile_args.push(server.webhook_uri.clone());
+        let factfile_args_map = get_tag_map(&job.factfile_args);
 
-            // Only required with webhook
-            if let Some(max_bytes) = server.max_stdouterr_size.clone() {
-                job.factfile_args.push("--max-stdouterr-size".to_string());
-                job.factfile_args.push(max_bytes.to_string());
-            };
+        if server.webhook_uri != "" {
+            if !factfile_args_map.contains_key("--webhook") {
+                job.factfile_args.push("--webhook".to_string());
+                job.factfile_args.push(server.webhook_uri.clone());
+            }
+            
+            if !factfile_args_map.contains_key("--max-stdouterr-size") {
+                // Only required with webhook
+                if let Some(max_bytes) = server.max_stdouterr_size.clone() {
+                    job.factfile_args.push("--max-stdouterr-size".to_string());
+                    job.factfile_args.push(max_bytes.to_string());
+                };
+            }
         }
-        if server.no_colour {
+        if !factfile_args_map.contains_key("--no-colour") && server.no_colour {
             job.factfile_args.push("--no-colour".to_string());
         }
     }
