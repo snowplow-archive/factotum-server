@@ -84,6 +84,7 @@ pub fn start(args: Args) -> Result<(), String> {
         status:     get     "/status"   =>  responder::status,
         settings:   post    "/settings" =>  responder::settings,
         submit:     post    "/submit"   =>  responder::submit,
+        submit_new:     post    "/submit/new"   =>  responder::submit,
         check:      get     "/check"    =>  responder::check
     );
     let (logger_before, logger_after) = Logger::new(None);
