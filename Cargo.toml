@@ -1,6 +1,6 @@
 [package]
 name = "factotum-server"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Nicholas Ung <support@snowplowanalytics.com>", "Josh Beemster <support@snowplowanalytics.com>"]
 
 [dependencies]

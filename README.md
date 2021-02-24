@@ -11,8 +11,8 @@ Job server as a web service. Enables the scheduling and concurrent execution of 
 Assuming you're running **64 bit Linux**:
 
 ```{bash}
-$ wget https://github.com/snowplow/factotum-server/releases/download/0.2.0/factotum_server_0.2.0_linux_x86_64.zip
-$ unzip factotum_server_0.2.0_linux_x86_64.zip
+$ wget https://github.com/snowplow/factotum-server/releases/download/0.3.0/factotum_server_0.3.0_linux_x86_64.zip
+$ unzip factotum_server_0.3.0_linux_x86_64.zip
 $ ./factotum-server --help
 ```
 
@@ -76,7 +76,7 @@ limitations under the License.
 [license-image]: http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat
 
 [releases]: https://github.com/snowplow/factotum-server/releases
-[release-image]: http://img.shields.io/badge/release-0.2.0-6ad7e5.svg?style=flat
+[release-image]: http://img.shields.io/badge/release-0.3.0-6ad7e5.svg?style=flat
 
 [factotum-repo]: https://github.com/snowplow/factotum
 [wiki-home]: https://github.com/snowplow/factotum/wiki/Factotum-Server
