@@ -1,22 +1,18 @@
 # Factotum Server
 
-[![Build Status][travis-image]][travis] [![Release][release-image]][releases] [![License][license-image]][license]
+[![Release][release-image]][releases] [![License][license-image]][license]
 
 ## Overview
 
-Job server as a web service. Enables the scheduling and concurrent execution of Factotum jobs.
-
-| **[User Guide][user-guide]**     | 
-|:--------------------------------------:|
-| [![i1][user-image]][user-guide] |
+Job server as a web service. Enables the scheduling and concurrent execution of Factotum jobs.  See the [user guide][user-guide] for further information on getting up and running.
 
 ## User quickstart
 
 Assuming you're running **64 bit Linux**:
 
 ```{bash}
-$ wget http://dl.bintray.com/snowplow/snowplow-generic/factotum_server_0.2.0_linux_x86_64.zip
-$ unzip factotum_server_0.2.0_linux_x86_64.zip
+$ wget https://github.com/snowplow/factotum-server/releases/download/0.3.0/factotum_server_0.3.0_linux_x86_64.zip
+$ unzip factotum_server_0.3.0_linux_x86_64.zip
 $ ./factotum-server --help
 ```
 
@@ -29,12 +25,12 @@ $ ./factotum-server --factotum-bin=<PATH>
 If Factotum is **not** already available:
 
 ```{bash}
-$ wget http://dl.bintray.com/snowplow/snowplow-generic/factotum_0.5.0_linux_x86_64.zip
-$ unzip factotum_0.5.0_linux_x86_64.zip
+$ wget https://github.com/snowplow/factotum/releases/download/0.6.0/factotum_0.6.0_linux_x86_64.zip
+$ unzip factotum_0.6.0_linux_x86_64.zip
 $ wget https://raw.githubusercontent.com/snowplow/factotum/master/samples/echo.factfile
 ```
 
-These commands will download the 0.5.0 Factotum release, unzip it in your current working directory, and download a sample job for you to run.
+These commands will download the 0.6.0 Factotum release, unzip it in your current working directory, and download a sample job for you to run.
 
 Consul is an operational dependency - please see HashiCorp's [getting started guide for Consul][consul-install].
 
@@ -65,7 +61,7 @@ Factotum Server is written in **[Rust][rust-lang]**.
 
 ## Copyright and license
 
-Factotum Server is copyright 2017-2018 Snowplow Analytics Ltd.
+Factotum Server is copyright 2017-2021 Snowplow Analytics Ltd.
 
 Licensed under the **[Apache License, Version 2.0][license]** (the "License");
 you may not use this software except in compliance with the License.
@@ -79,15 +75,8 @@ limitations under the License.
 [license]: http://www.apache.org/licenses/LICENSE-2.0
 [license-image]: http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat
 
-[travis]: https://travis-ci.org/snowplow/factotum-server
-[travis-image]: https://travis-ci.org/snowplow/factotum-server.svg?branch=master
-
 [releases]: https://github.com/snowplow/factotum-server/releases
-[release-image]: http://img.shields.io/badge/release-0.2.0-6ad7e5.svg?style=flat
-
-[user-image]: http://sauna-github-static.s3-website-us-east-1.amazonaws.com/analyst.svg
-[devops-image]:  http://sauna-github-static.s3-website-us-east-1.amazonaws.com/devops.svg
-[developer-image]:  http://sauna-github-static.s3-website-us-east-1.amazonaws.com/developer.svg
+[release-image]: http://img.shields.io/badge/release-0.3.0-6ad7e5.svg?style=flat
 
 [factotum-repo]: https://github.com/snowplow/factotum
 [wiki-home]: https://github.com/snowplow/factotum/wiki/Factotum-Server
