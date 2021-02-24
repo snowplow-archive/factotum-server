@@ -1,3 +1,8 @@
+Version 0.3.0 (2021-02-24)
+--------------------------
+Migrate from Bintray to Github for releases (#12)
+Update Copyright to 2017-2021 (#14)
+
 Version 0.2.0 (2018-06-26)
 --------------------------
 Add support for Webhook max-stdouterr-size (#6)
