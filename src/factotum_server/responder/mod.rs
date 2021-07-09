@@ -33,6 +33,8 @@ use factotum_server::dispatcher::{Dispatch, Query};
 use factotum_server::persistence;
 use factotum_server::persistence::{Persistence, JobState};
 use factotum_server::server::{ServerManager, SettingsRequest, JobRequest, ValidationError};
+use crypto::sha2::Sha256;
+use crypto::digest::Digest;
 
 #[cfg(test)]
 mod tests;
@@ -299,9 +301,26 @@ fn process_valid_submission<T, U, F, G>(url: &Url, request_body: Result<Option<J
         }
     };
 
-    if is_job_queued_or_running(persistence, &mut validated_job_request) {
-        return (status::BadRequest, create_warn_response(url, "Job is already being processed"))
-    }
+    let mut path_have_new = url.path_segments().unwrap();
+    match path_have_new.nth(1) {
+        Some(new) => {
+            if new == "new" {
+                debug!("new task");
+                let mut job_digest = Sha256::new();
+                let rfc_start_time = validated_job_request.start_time.to_rfc3339();
+                job_digest.input_str(&*validated_job_request.job_id);
+                job_digest.input_str(&*rfc_start_time);
+                let new_job_id = job_digest.result_str();
+
+                validated_job_request.job_id = new_job_id;
+            }
+        },
+        None => {
+            if is_job_queued_or_running(persistence, &mut validated_job_request) {
+                return (status::BadRequest, create_warn_response(url, "Job is already being processed"))
+            }
+        }
+    };
 
     // check queue size
     if is_requests_queue_full(jobs_channel.clone()) {

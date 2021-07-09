@@ -18,7 +18,8 @@ use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use chrono::{DateTime, UTC};
+use chrono::DateTime;
+use chrono::prelude::Utc;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use getopts::Options;
@@ -34,7 +35,7 @@ pub struct ServerManager {
     pub ip: String,
     pub port: u32,
     pub state: String,
-    pub start_time: DateTime<UTC>,
+    pub start_time: DateTime<Utc>,
     pub webhook_uri: String,
     pub no_colour: bool,
     pub max_stdouterr_size: Option<usize>,
@@ -46,7 +47,7 @@ impl ServerManager {
             ip: if let Some(ip) = wrapped_ip { ip } else { ::IP_DEFAULT.to_string() },
             port: if port > 0 && port <= 65535 { port } else { ::PORT_DEFAULT },
             state: ::SERVER_STATE_RUN.to_string(),
-            start_time: UTC::now(),
+            start_time: Utc::now(),
             webhook_uri: webhook_uri.to_string(),
             no_colour: no_colour,
             max_stdouterr_size: max_stdouterr_size,
@@ -62,7 +63,7 @@ impl ServerManager {
     }
 
     pub fn get_uptime(&self) -> String {
-        let uptime = UTC::now().signed_duration_since(self.start_time);
+        let uptime = Utc::now().signed_duration_since(self.start_time);
         let seconds = uptime.num_seconds() % 60;
         let minutes = uptime.num_minutes() % 60;
         let hours = uptime.num_hours() % 24;
@@ -78,7 +79,19 @@ pub struct JobRequest {
     pub job_id: String,
     pub job_name: String,
     pub factfile_path: String,
-    pub factfile_args: Vec<String>
+    pub factfile_args: Vec<String>,
+    #[serde(default)]
+    pub exec_output: String,
+    #[serde(default = "UtcTime::default")]
+    pub start_time: DateTime<Utc>,
+    #[serde(default = "UtcTime::default")]
+    pub end_time: DateTime<Utc>
+}
+struct UtcTime;
+impl UtcTime {
+    fn default() -> DateTime<Utc> {
+        Utc::now()
+    }
 }
 
 impl JobRequest {
@@ -89,6 +102,9 @@ impl JobRequest {
             job_name: job_name.to_owned(),
             factfile_path: factfile_path.to_owned(),
             factfile_args: factfile_args,
+            exec_output: String::new(),
+            start_time: Utc::now(),
+            end_time: Utc::now(),
         }
     }
 
@@ -144,17 +160,23 @@ impl JobRequest {
     }
 
     pub fn append_job_args(server: &ServerManager, job: &mut JobRequest) {
-        if server.webhook_uri != "" {
-            job.factfile_args.push("--webhook".to_string());
-            job.factfile_args.push(server.webhook_uri.clone());
+        let factfile_args_map = get_tag_map(&job.factfile_args);
 
-            // Only required with webhook
-            if let Some(max_bytes) = server.max_stdouterr_size.clone() {
-                job.factfile_args.push("--max-stdouterr-size".to_string());
-                job.factfile_args.push(max_bytes.to_string());
-            };
+        if server.webhook_uri != "" {
+            if !factfile_args_map.contains_key("--webhook") {
+                job.factfile_args.push("--webhook".to_string());
+                job.factfile_args.push(server.webhook_uri.clone());
+            }
+            
+            if !factfile_args_map.contains_key("--max-stdouterr-size") {
+                // Only required with webhook
+                if let Some(max_bytes) = server.max_stdouterr_size.clone() {
+                    job.factfile_args.push("--max-stdouterr-size".to_string());
+                    job.factfile_args.push(max_bytes.to_string());
+                };
+            }
         }
-        if server.no_colour {
+        if !factfile_args_map.contains_key("--no-colour") && server.no_colour {
             job.factfile_args.push("--no-colour".to_string());
         }
     }

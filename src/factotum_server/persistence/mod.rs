@@ -50,7 +50,8 @@ impl ConsulPersistence {
     }
 
     fn client(&self) -> Client {
-        Client::new(&format!("{}:{}", self.host.clone(), self.port.clone()))
+        let address = format!("http://{}:{}", self.host.clone(), self.port.clone());
+        return Client::new(address)
     }
 }
 
@@ -61,13 +62,14 @@ impl Persistence for ConsulPersistence {
 
     fn set_key(&self, key: &str, value: &str) -> ThreadResult<()> {
         panic::catch_unwind(|| {
-            self.client().keystore.set_key(key.to_owned(), value.to_owned())
+            let _result = self.client().keystore.set_key(key.to_owned(), value.to_owned());
         })
     }
 
     fn get_key(&self, key: &str) -> ThreadResult<Option<String>> {
         panic::catch_unwind(|| {
-            self.client().keystore.get_key(key.to_owned())
+            let result = self.client().keystore.get_key(key.to_owned()).unwrap();
+            return result;
         })
     }
 

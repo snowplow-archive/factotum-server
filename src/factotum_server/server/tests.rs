@@ -22,7 +22,7 @@ fn create_new_server_manager() {
     assert_eq!(server_manager.ip, "0.0.0.0");
     assert_eq!(server_manager.port, 8080);
     assert_eq!(server_manager.state, ::SERVER_STATE_RUN);
-    assert_eq!(server_manager.start_time.date(), UTC::today());
+    assert_eq!(server_manager.start_time.date(), Utc::today());
     assert_eq!(server_manager.webhook_uri, "http://a.webhook.com/");
     assert!(server_manager.no_colour);
 }
@@ -43,13 +43,13 @@ fn server_manager_is_not_running() {
 #[test]
 fn server_manager_get_start_time() {
     let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false, Some(10_000));
-    assert_eq!(server_manager.get_start_time(), UTC::now().format("%F %T %Z").to_string());
+    assert_eq!(server_manager.get_start_time(), Utc::now().format("%F %T %Z").to_string());
 }
 
 #[test]
 fn server_manager_get_uptime() {
     let server_manager = ServerManager::new(Some("0.0.0.0".to_string()), 8080, "http://dummy.test/".to_string(), false, Some(10_000));
-    let uptime = UTC::now().signed_duration_since(server_manager.start_time);
+    let uptime = Utc::now().signed_duration_since(server_manager.start_time);
     let seconds = uptime.num_seconds() % 60;
     let minutes = uptime.num_minutes() % 60;
     let hours = uptime.num_hours() % 24;

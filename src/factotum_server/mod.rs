@@ -35,6 +35,7 @@ use iron::typemap::Key;
 use logger::Logger;
 use persistent::{Read, State};
 use threadpool::ThreadPool;
+use chrono::prelude::Utc;
 
 use Args;
 use factotum_server::command::{CommandStore, Execution};
@@ -83,6 +84,7 @@ pub fn start(args: Args) -> Result<(), String> {
         status:     get     "/status"   =>  responder::status,
         settings:   post    "/settings" =>  responder::settings,
         submit:     post    "/submit"   =>  responder::submit,
+        submit_new:     post    "/submit/new"   =>  responder::submit,
         check:      get     "/check"    =>  responder::check
     );
     let (logger_before, logger_after) = Logger::new(None);
@@ -113,7 +115,7 @@ pub fn start(args: Args) -> Result<(), String> {
 
 pub fn trigger_worker_manager<T: 'static + Clone + Persistence + Send>(dispatcher: Dispatcher, persistence: T, command_store: &CommandStore) -> Result<(Sender<Dispatch>, JoinHandle<()>, ThreadPool), String> {
     let (tx, rx) = mpsc::channel();
-    let primary_pool = ThreadPool::new_with_name("primary_pool".to_string(), dispatcher.max_workers);
+    let primary_pool = ThreadPool::with_name("primary_pool".to_string(), dispatcher.max_workers);
 
     let join_handle = spawn_worker_manager(tx.clone(), rx, dispatcher.requests_queue, dispatcher.max_jobs, primary_pool.clone(), persistence, command_store.clone());
 
@@ -227,8 +229,11 @@ fn process_job_request<T: 'static + Persistence + Send>(requests_channel: Sender
                 cmd_args.extend_from_slice(request.factfile_args.as_slice());
                 match command_store.execute(cmd_path, cmd_args) {
                     Ok(output) => {
-                        trace!("{}", output);
-                        requests_channel.send(Dispatch::RequestComplete(request)).expect("Job requests channel receiver has been deallocated");
+                        trace!("process_job_request output:{}", output);
+                        let mut clone = request.clone();
+                        clone.exec_output = output;
+                        clone.end_time = Utc::now();
+                        requests_channel.send(Dispatch::RequestComplete(clone)).expect("Job requests channel receiver has been deallocated");
                     },
                     Err(e) => {
                         error!("{}", e);
